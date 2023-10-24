@@ -1,3 +1,4 @@
+import { errorHandler } from "../library/errorHandler.js"
 import * as impure from "../library/impure.js"
 
 export default function onReceivingEquipment(merchantName, equipmentArray) {
@@ -66,7 +67,7 @@ export default function onReceivingEquipment(merchantName, equipmentArray) {
 			}
 			
 			const pickHandSlot = () => {
-				if(this.ctype === 'warrior') return pickOneSlotOfTwo();
+				if(this.ctype === 'warrior' || this.ctype === 'rogue') return pickOneSlotOfTwo();
 				if(item.type === 'weapon') return 'mainhand';
 			}
 
@@ -81,13 +82,18 @@ export default function onReceivingEquipment(merchantName, equipmentArray) {
 		if( isInEquipmentArray(data.item) ) {
 
 			const slot = whichSlot(data.item);
-			const equipmentInSlot = this.slots[ slot ];
-			this.equip(data.num, slot).catch(console.error);
-			impure.functionMessage(`Equipped ${data.item} +${this.items[data.num].level}${ equipmentInSlot ? ` and sent back ${equipmentInSlot.name} +${equipmentInSlot.level}` : ''}`, onReceivingEquipment.name);	
+			const equipmentInSlot = this.slots[slot];
+
+			while(this.ready) {
+				await this.equip(data.num, slot).catch(errorHandler);
+				if(this.slots[slot] !== equipmentInSlot) break;
+				await new Promise(r=>setTimeout(r, 1000));
+			}
+			impure.timePrefix(`Equipped ${this.slots[slot].name} +${this.slots[slot].level}${ equipmentInSlot ? ` and sent back ${equipmentInSlot.name} +${equipmentInSlot.level}` : ''}`, onReceivingEquipment.name);	
 
 			if(!equipmentInSlot) return;
 			await new Promise( r => setInterval(r, 500) );
-			this.sendItem(merchantName, data.num).catch(console.error);
+			this.sendItem(merchantName, data.num).catch(errorHandler);
 
 		}
 		

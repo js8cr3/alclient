@@ -2,85 +2,45 @@ import { initializeNodes, withinBoundary2D } from './utils.js'
 import { symbolA, gridUnit, monsterData } from './settings.js'
 import * as impure from '../library/impure.js'
 
-export { combatMain };
-
-function combatMain() {
+export async function combatMain(characterNamesByClass) {
 
 	const character = this;
 
-	const monsterBoundary = this.getMonsterBoundary(...monsterData);
+	const monsterBoundary = character.getMonsterBoundary(...monsterData);
 	monsterBoundary[0] -= gridUnit * 2;
 	monsterBoundary[2] += gridUnit * 4;
 
 	const nodes = initializeNodes(monsterBoundary, gridUnit, symbolA);
 
-	const mageName = 'Desk';
-	const priestName = 'Stool'
 	const partyList = ['Desk', 'Stool', 'Shelf', 'Bench'];
 	const safeSpot = {x: -442, y: -2154};
 
-	if(this.ctype === 'mage') {
-		this.handleMagiportRequest(partyList);
-		mageCombat();
-	} else if(this.ctype === 'priest') {
-		this.handleMagiportInvite(mageName, () => this.combatState = 'ready');
-		priestCombat();
-	} else if(this.ctype === 'warrior') {
-		this.handleMagiportInvite(mageName, () => this.combatState = 'ready');
-		warriorCombat();
+	if (character.rip) {
+		LocalStorage.combatState = 'rip';
+	} else {
+		LocalStorage.combatState = 'inactive';
 	}
 
-	async function priestCombat() {
-		if( 
-			!character.rip && 
-			withinBoundary2D(character, monsterBoundary) 
-		){
-			character.combatState = 'active';
-		} else if (character.rip) {
-			character.combatState = 'rip';
-		} else {
-			character.combatState = 'inactive';
-		}
-		while(character.ready) {
-			console.log(character.name + ' ' + character.combatState)
-			await priestLoop();
-		}
-	}
+	if(character.ctype === 'mage') {
 
-	async function mageCombat() {
-		const priest = character.getPlayerByName(priestName);
-		if( 
-			priest && 
-			!priest.rip && 
-			withinBoundary2D(character, monsterBoundary) 
-		) {
-			character.combatState = 'active';
-		} else if (character.rip) {
-			character.combatState = 'rip';
-		} else {
-			character.combatState = 'inactive';
-		}
+		character.handleMagiportRequest(partyList);
 		while(character.ready) {
-			console.log(character.name + ' ' + character.combatState)
+			impure.timePrefix(character.name + ' combatState: ' + LocalStorage.combatState)
 			await mageLoop();
 		}
-	}
 
-	async function warriorCombat() {
-		const priest = character.getPlayerByName(priestName);
-		if( 
-			priest && 
-			!priest.rip && 
-			withinBoundary2D(character, monsterBoundary) 
-		) {
-			character.combatState = 'active';
-		} else if (character.rip) {
-			character.combatState = 'rip';
-		} else {
-			character.combatState = 'inactive';
-		}
+	} else if(character.ctype === 'priest') {
+
 		while(character.ready) {
-			console.log(character.name + ' ' + character.combatState)
+			impure.timePrefix(character.name + ' combatState: ' + LocalStorage.combatState)
+			await priestLoop();
+		}
+
+
+	} else if(character.ctype === 'warrior') {
+
+		while(character.ready) {
+			impure.timePrefix(character.name + ' combatState: ' + LocalStorage.combatState)
 			await warriorLoop();
 		}
 
@@ -88,25 +48,25 @@ function combatMain() {
 
 	async function mageLoop() {
 
-		const currentState = character.combatState;
+		const currentState = LocalStorage.combatState;
 		let currentIntervals;
 
 		const activeState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
+				if(LocalStorage.combatState !== currentState) return;
 				if(character.rip) {
-					character.combatState = 'rip'
+					LocalStorage.combatState = 'rip'
 					return;
 				}
-				const priest = character.getPlayerByName(priestName);
+				const priest = character.getPlayerByName(characterNamesByClass.priest);
 				if(!priest || (priest && priest.rip)) {
-					character.combatState = 'ready';
+					LocalStorage.combatState = 'ready';
 					character.retreatToSafety(safeSpot);
 				};
 			}, 333 );
 
-			const combatLoop = setInterval( () => character.mage(priestName), 100 );
+			const combatLoop = setInterval( () => character.mage(characterNamesByClass.priest), 100 );
 
 			const manouverLoop = setInterval( () => { 
 				character.manouver(nodes, monsterBoundary, 'followLeaderStrategy') 
@@ -119,12 +79,12 @@ function combatMain() {
 		const readyState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
+				if(LocalStorage.combatState !== currentState) return;
 				if(character.rip) {
-					character.combatState = 'rip'
+					LocalStorage.combatState = 'rip'
 					return;
 				}
-				if(character.getPlayerByName(priestName)) character.combatState = 'active';
+				if(character.getPlayerByName(characterNamesByClass.priest)) LocalStorage.combatState = 'active';
 			}, 333 );
 
 			const combatMiscLoop = setInterval( () => {
@@ -138,22 +98,24 @@ function combatMain() {
 		const inactiveState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
-				if(character.rip) character.combatState = 'rip'
+				if(LocalStorage.combatState !== currentState) return;
+				if(character.rip) LocalStorage.combatState = 'rip'
 			}, 333);
 			
 			const combatMiscLoop = setInterval( () => {
-					character.combatMisc();
+				character.combatMisc();
 			}, 500);
 
 			const stateChange = async () => {
 				try {
-					impure.functionMessage('Mage teleporting to combat spot', mageLoop.name, '#fff');
+					impure.timePrefix('Mage teleporting to combat spot', mageLoop.name, '#fff');
 					await character.teleportToSpot();
-					character.combatState = 'ready';
+					LocalStorage.combatState = 'ready';
 				} catch(e) {
-					console.error(e);
-					if(!character.rip) throw new Error('teleportToSpot: unknown error');
+					if(!character.rip && character.ready) {
+						console.error(e);
+						throw new Error('teleportToSpot: unknown error');
+					};
 				}
 			};
 
@@ -166,27 +128,22 @@ function combatMain() {
 		const ripState = () => {
 			const stateChange = async () => {
 				await character.handleDeath();
-				character.combatState = 'inactive';
+				LocalStorage.combatState = 'inactive';
 			}
 			stateChange();
 			return [];
 		};
 
-		switch(currentState) {
-			case 'active':
-				currentIntervals = activeState();
-				break;
-			case 'ready':
-				currentIntervals = readyState();
-				break;
-			case 'inactive':
-				currentIntervals = inactiveState();
-				break;
-			case 'rip':
-				currentIntervals = ripState();
+		const stateSwitch = {
+			"ready": readyState,
+			"active": activeState,
+			"inactive": inactiveState,
+			"rip": ripState
 		}
 
-		while(character.combatState === currentState) {
+		currentIntervals = stateSwitch[currentState]();
+
+		while(LocalStorage.combatState === currentState) {
 			await new Promise(r=>setTimeout(r, 500));
 		}
 
@@ -198,19 +155,19 @@ function combatMain() {
 
 	async function priestLoop() {
 
-		const currentState = character.combatState;
+		const currentState = LocalStorage.combatState;
 		let currentIntervals;
 
 		const readyState = () => {
-			character.combatState = 'active';
+			LocalStorage.combatState = 'active';
 			return [];
 		};
 
 		const activeState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
-				if(character.rip) character.combatState = 'rip'
+				if(LocalStorage.combatState !== currentState) return;
+				if(character.rip) LocalStorage.combatState = 'rip'
 			}, 333);
 
 			const combatLoop = setInterval( () => character.priest(monsterBoundary), 100 );
@@ -226,15 +183,15 @@ function combatMain() {
 		const inactiveState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
-				if(character.rip) character.combatState = 'rip'
+				if(LocalStorage.combatState !== currentState) return;
+				if(character.rip) LocalStorage.combatState = 'rip'
 			}, 333 );
 
 			const combatMiscLoop = setInterval( () => character.combatMisc(), 500 )
 
 			const stateChange = async () => {
-				while(character.combatState === 'inactive') {
-					character.requestMagiport(mageName); // changes combatState to 'ready' after accepting magiport
+				while(LocalStorage.combatState === 'inactive') {
+					character.requestMagiport(characterNamesByClass.mage); // changes combatState to 'ready' after accepting magiport
 					await new Promise(r=>setTimeout(r, 10000));
 				}
 			}
@@ -248,7 +205,7 @@ function combatMain() {
 		const ripState = () => {
 			const stateChange = async () => {
 				await character.handleDeath();
-				character.combatState = 'inactive';
+				LocalStorage.combatState = 'inactive';
 			}
 			stateChange();
 			return [];
@@ -263,7 +220,7 @@ function combatMain() {
 
 		currentIntervals = stateSwitch[currentState]();
 
-		while(character.combatState === currentState) {
+		while(LocalStorage.combatState === currentState) {
 			await new Promise(r=>setTimeout(r, 1000));
 		}
 
@@ -275,7 +232,7 @@ function combatMain() {
 
 	async function warriorLoop() {
 
-		const currentState = character.combatState;
+		const currentState = LocalStorage.combatState;
 		let currentIntervals;
 
 		const readyState = () => {
@@ -283,12 +240,12 @@ function combatMain() {
 			const combatMiscLoop = setInterval( () => character.combatMisc(), 500 );
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
+				if(LocalStorage.combatState !== currentState) return;
 				if(character.rip) {
-					character.combatState = 'rip'
+					LocalStorage.combatState = 'rip'
 					return;
 				}
-				if(character.getPlayerByName(priestName)) character.combatState = 'active';
+				if(character.getPlayerByName(characterNamesByClass.priest)) LocalStorage.combatState = 'active';
 			}, 333 );
 
 			return [ combatMiscLoop, stateChangeLoop ];
@@ -298,24 +255,24 @@ function combatMain() {
 		const activeState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
+				if(LocalStorage.combatState !== currentState) return;
 				if(character.rip) {
-					character.combatState = 'rip'
+					LocalStorage.combatState = 'rip'
 					return;
 				}
-				const priest = character.getPlayerByName(priestName);
+				const priest = character.getPlayerByName(characterNamesByClass.priest);
 				if(!priest || (priest && priest.rip)) {
-					character.combatState = 'ready';
+					LocalStorage.combatState = 'ready';
 					character.retreatToSafety(safeSpot);
 				}
 			}, 333); 
 
 			const combatLoop = setInterval( () => { 
-				character.warrior(priestName);
+				character.warrior(characterNamesByClass.priest);
 			}, 100); 
 
 			const warriorMoveLoop = setInterval( () => { 
-				character.warriorMove(priestName);
+				character.warriorMove(characterNamesByClass.priest);
 			}, 250)
 
 			return [ stateChangeLoop, combatLoop, warriorMoveLoop ];
@@ -325,8 +282,8 @@ function combatMain() {
 		const inactiveState = () => {
 
 			const stateChangeLoop = setInterval( () => {
-				if(character.combatState !== currentState) return;
-				if(character.rip) character.combatState = 'rip'
+				if(LocalStorage.combatState !== currentState) return;
+				if(character.rip) LocalStorage.combatState = 'rip'
 			}, 333 );
 
 			const combatMiscLoop = setInterval( () => {
@@ -334,8 +291,8 @@ function combatMain() {
 			}, 500 );
 
 			const stateChange = async () => {
-				while(character.combatState === 'inactive') {
-					character.requestMagiport(mageName); // changes combatState to 'ready' after accepting magiport
+				while(LocalStorage.combatState === 'inactive') {
+					character.requestMagiport(characterNamesByClass.mage); // changes combatState to 'ready' after accepting magiport
 					await new Promise(r=>setTimeout(r, 10000));
 				}
 			}
@@ -349,7 +306,7 @@ function combatMain() {
 		const ripState = () => {
 			const stateChange = async () => {
 				await character.handleDeath();
-				character.combatState = 'inactive';
+				LocalStorage.combatState = 'inactive';
 			}
 			stateChange();
 			return [];
@@ -364,7 +321,7 @@ function combatMain() {
 
 		currentIntervals = stateSwitch[currentState]();
 
-		while(character.combatState === currentState) {
+		while(LocalStorage.combatState === currentState) {
 			await new Promise(r=>setTimeout(r, 1000));
 		}
 

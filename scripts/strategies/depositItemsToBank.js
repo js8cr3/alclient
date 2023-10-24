@@ -1,4 +1,5 @@
-import * as impure from '../library/impure.js'
+import { errorHandler } from "../library/errorHandler.js"
+import { LocalStorage } from "../LocalStorage.js"
 
 export async function depositItemsToBank(itemNameArray) {
 
@@ -6,7 +7,7 @@ export async function depositItemsToBank(itemNameArray) {
 	if(this.map !== 'bank') throw new Error('Not in bank');
 	if(this.rip) throw new Error('Character dead');
 
-	this.currentUpgrade = undefined;
+	LocalStorage.currentUpgrade = undefined;
 
     for(let i = 0; i < this.items.length; i++) {
 
@@ -17,10 +18,10 @@ export async function depositItemsToBank(itemNameArray) {
 
             if(item.name !== itemName) continue;
 
-			let deposited;
-			while(!deposited && this.ready) {
-				await this.depositItem(i).then( () => deposited = true )
-				if(!deposited) await new Promise( r => setTimeout(r, 500) );
+			while(this.ready) {
+				await this.depositItem(i).catch(errorHandler);
+				if(!this.items[i]) break; 
+				await new Promise( r => setTimeout(r, 500) );
 			}
 
             break;

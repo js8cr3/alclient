@@ -2,6 +2,7 @@ import * as impure from "./impure.js"
 import * as utils from "./utils.js"
 import { errorHandler } from "./errorHandler.js"
 
+
 export function hasEnoughHPOrMP(HPOrMP, ratio) {
 	HPOrMP = HPOrMP.toLowerCase();
 	const maxHPOrMP = 'max_' + HPOrMP;

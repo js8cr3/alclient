@@ -1,23 +1,31 @@
 import chalk from 'chalk'
-import * as impure from "./library/impure.js"
 import * as utils from "./library/utils.js"
+import { assignMethods } from "./library/assignMethods.js"
+import { assignHalloweenMethods } from "./halloween/assignHalloweenMethods.js"
+import { LocalStorage } from "./LocalStorage.js"
 
 const merchantName = 'Bench';
-const partyList = ['Desk', 'Stool', 'Shelf'];
+const mageName = 'Desk';
+const partyList = ['Desk', 'Roof', 'Shelf'];
 const consumablesNeeded = {'hpot1': 9999, 'mpot0': 9999}; 
 const sendLootBlacklist = ['tracker','hpot1', 'mpot0'];
 const selectEquipementList = ctype => {
 	switch(ctype) {
 		case 'mage': 
-			return ['wbook0', 'staff', 'coat', 'ringsj', 'wcap', 'shoes', 'pants', 'gloves', 'intearring', 'intamulet'];
+			return ['intbelt', 'wbook0', 'staff', 'coat', 'intring', 'mmhat', 'shoes', 'pants', 'gloves', 'intearring', 'intamulet'];
 		case 'warrior': 
-			return ['blade', 'coat', 'ringsj', 'wcap', 'shoes', 'pants', 'gloves', 'stramulet', 'strearring'];
+			return ['strbelt', 'blade', 'coat', 'strring', 'wcap', 'shoes', 'pants', 'gloves', 'stramulet', 'strearring'];
 		case 'priest': 
-			return ['wbook0', 'staff', 'coat', 'ringsj', 'wcap', 'shoes', 'pants', 'gloves', 'intearring', 'intamulet'];
+			return ['wbook0', 'staff', 'coat', 'intring', 'wcap', 'shoes', 'pants', 'gloves', 'intearring', 'intamulet'];
+		case 'rogue': 
+			return ['firestars', 'coat', 'dexring', 'wcap', 'shoes', 'pants', 'gloves', 'dexearring', 'dexamulet', 'dexbelt'];
 	}
 };
 
 export default async function startup() {
+
+	assignMethods(this);
+	assignHalloweenMethods(this);
 
 	const callStartupMethods = () => {
 		this.gameMessages();
@@ -25,18 +33,17 @@ export default async function startup() {
 		this.combatantOnCM(merchantName, consumablesNeeded, sendLootBlacklist);
 		this.onReceivingEquipment(merchantName, selectEquipementList(this.ctype)); 
 		this.updateDatabase();
-		this.disperseOnCombinedDamage( () => {
-			this.move(this.x+utils.randomNum(-10,10), this.y+utils.randomNum(-10, 10))
-			.catch( () => {} )
-		} );
+		this.disperseOnCombinedDamage();
+		this.handleMagiportInvite(mageName, undefined /*() => LocalStorage.combatState = 'ready'*/ );
 	};
 
 	callStartupMethods();
 
-	while(!this.ready) {
+	for(let i = 0; !this.ready; i++) {
 		await new Promise( r => setTimeout(r, 1000) );
+		if( i > 99 ) throw new Error("Character failed to load");
 	}
 	
-	this.combatMain();
+	await this.combatMain();
 
 }

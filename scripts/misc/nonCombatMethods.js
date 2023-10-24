@@ -1,5 +1,6 @@
 import * as utils from "../library/utils.js"
 import * as impure from "../library/impure.js"
+import { errorHandler } from "../library/errorHandler.js"
 
 export function sendLootToMerchant(merchantName, itemBlacklist) {
 
@@ -10,10 +11,12 @@ export function sendLootToMerchant(merchantName, itemBlacklist) {
 
 	if(utils.distance(this,merchant) > 600) return;
 
-	if( this.gold ) this.sendGold(merchantName, this.gold).catch(console.error);
+	if( this.gold ) this.sendGold(merchantName, this.gold).catch(errorHandler);
 
 	this.items.forEach( (item, index) => {
+
 		if(!item) return;
+
 		let isBlacklisted = false;
 		for(const listItem of itemBlacklist) {
 			if(listItem === item.name) {
@@ -21,7 +24,10 @@ export function sendLootToMerchant(merchantName, itemBlacklist) {
 				break;
 			}
 		}
-		if(!isBlacklisted) this.sendItem(merchantName, index, item.q).catch(console.error);
+		if(isBlacklisted) return;
+
+		this.sendItem(merchantName, index, item.q).catch(errorHandler);
+
 	} );
 
 }
@@ -49,7 +55,7 @@ export function requestConsumables(merchantName, consumableTypes) {
 	} );
 	
 	this.sendCM([merchantName], requestConsumablesCM)
-	.then( () => impure.functionMessage(this.name + ' requested: ' + JSON.stringify(requestConsumablesCM.consumablesList), 'requestConsumables') )
-	.catch( error => impure.functionMessage(error.toString(), 'requestConsumables') );
+	.then( () => impure.timePrefix(this.name + ' requested: ' + JSON.stringify(requestConsumablesCM.consumablesList), 'requestConsumables') )
+	.catch(errorHandler);
 
 };

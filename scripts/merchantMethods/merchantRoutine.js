@@ -1,5 +1,7 @@
 import chalk from 'chalk'
 import * as impure from "../library/impure.js"
+import { errorHandler } from "../library/errorHandler.js"
+import { runPromiseUntilSuccess } from "../library/utils.js"
 
 export default function merchantRoutine(partyList, itemsToBuy, itemsToSell, restSpot, grindSpot) {
 	
@@ -15,52 +17,50 @@ export default function merchantRoutine(partyList, itemsToBuy, itemsToSell, rest
 	const backToRestSpotMessage = 'Merchant moving back to rest spot';
 	const reachRestSpotMessage = 'Merchant arrived at rest spot';
 
-	this.performingRoutine = true;
-
 	return new Promise( async (resolve, reject) => {
 
 		const steps = [
 
 			async () => {
-				impure.functionMessage(routineStartMessage, merchantRoutine.name);
-				for(let i = 0; !this.magiportAccepted; i++) {
-					impure.functionMessage(`Sent ${mageName} magiport request`, merchantRoutine.name, '#FFF');
-					await this.sendCM([mageName], 'magiport');
-					await new Promise(r=>setTimeout(r,5000));
-					if(i >= 2) throw new Error('No response to magiport request');
+				impure.timePrefix(routineStartMessage, merchantRoutine.name);
+				for(let i = 0; this.ready; i++) {
+					if(this.getPlayerByName(mageName)) break;
+					if(i >= 3) throw new Error('No response to magiport request');
+					impure.timePrefix(`Sent ${mageName} magiport request`, merchantRoutine.name, '#FFF');
+					await this.sendCM([mageName], "{\"magiport\": true}");
+					await new Promise(r=>setTimeout(r,10000));
 				}
-				this.magiportAccepted = undefined;
 			},
 
 			async () => {
-				impure.functionMessage(reachCombatantsMessage, 'merchantRoutine');
+				impure.timePrefix(reachCombatantsMessage, 'merchantRoutine');
 				await this.sendCM(partyList, {"routine": true});
 				for(const name of partyList) {
 					const player = this.getPlayerByName(name);
 					if(!player) continue;
 					let success;
+					let attemptCount = 0;
 					while(!success && this.ready) {
+						attemptCount++;
+						if(attemptCount > 10) break;
 						await this.mluck(name)
 						.then( () => { success = true } )
-						.catch( error => impure.functionMessage(error.toString(), merchantRoutine.name, '#f00') )
+						.catch(errorHandler)
 						await new Promise( r => setTimeout(r, 1000) );
 					}
 				}
 			},
 
 			async () => {
-				impure.functionMessage(backToRestSpotMessage, 'merchantRoutine');
-				await this.smartMove(restSpot, smartMoveOptions);
+				impure.timePrefix(backToRestSpotMessage, 'merchantRoutine');
+				const attemptSmartMove = () => this.smartMove(restSpot, smartMoveOptions);
+				await runPromiseUntilSuccess(attemptSmartMove, errorHandler);
 			},
 
 			async () => {
-				impure.functionMessage(reachRestSpotMessage, 'merchantRoutine');
+				impure.timePrefix(reachRestSpotMessage, 'merchantRoutine');
 				await this.handleLoot(itemsToBuy, itemsToSell);
-			},
-
-			async () => {
 				resolve();
-				this.performingRoutine = false;
 			}
 
 		];
@@ -74,7 +74,6 @@ export default function merchantRoutine(partyList, itemsToBuy, itemsToSell, rest
 
 		} catch(error) {
 
-			this.performingRoutine = false;
 			reject(error);
 
 		}

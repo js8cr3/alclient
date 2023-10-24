@@ -2,7 +2,6 @@ import { getNearestMonsterInsideBoundary, getAggressiveMonster } from './adventu
 import { distance } from '../library/utils.js'
 import { Pathfinder } from '../../node_modules/alclient/build/Pathfinder.js'
 import { errorHandler } from '../library/errorHandler.js'
-import { LocalStorage } from "../LocalStorage.js"
 
 export { combatMisc, mage, priest, warrior, warriorMove };
 
@@ -149,11 +148,11 @@ function warriorMove(priestName) {
 	if(distance(this, target) > this.range * 0.2) {
 		const pathClear = Pathfinder.canWalkPath(this, target);
 		if(!pathClear) {
-			if(!LocalStorage.isSmartmoving) {
-				LocalStorage.isSmartmoving = true;
+			if(!this.isSmartmoving) {
+				this.isSmartmoving = true;
 				this.smartMove({ x: target.x, y: target.y })
-				.then( () => LocalStorage.isSmartmoving = false )
-				.catch( error => LocalStorage.isSmartmoving = false );
+				.then( () => this.isSmartmoving = false )
+				.catch( error => this.isSmartmoving = false );
 			} else {
 				return;
 			}

@@ -2,7 +2,6 @@
 import * as customMethods from "./customMethods.js"
 
 // strategies
-
 import { availableBankPacks } from "../strategies/availableBankPacks.js"
 import { findOrGetTarget } from "../strategies/findOrGetTarget.js"
 import { moveInsideMonsterBoundary } from "../strategies/moveInsideMonsterBoundary.js"
@@ -20,20 +19,18 @@ import { combatantOnCM, merchantOnCM } from "../startupMethods/onCM.js"
 import onReceivingEquipment from "../startupMethods/onReceivingEquipment.js"
 import { disperseOnCombinedDamage } from "../startupMethods/disperseOnCombinedDamage.js"
 import { handleMagiportInvite } from "../startupMethods/handleMagiportInvite.js"
-import startup from "../startup.js"
-import startupMerchant from "../startupMerchant.js"
 
 // merchant
 import merchantLoop from "../merchantMethods/merchant.js"
 import merchantRoutine from "../merchantMethods/merchantRoutine.js"
 import autoUpgrade from "../merchantMethods/autoUpgrade.js"
 import handleLoot from "../merchantMethods/handleLoot.js"
-import bankItems from "../merchantMethods/bankItems.js"
+import determineNewUpgradeTarget from "../merchantMethods/determineNewUpgradeTarget.js"
 
 // database
 import updateDatabase from "../database/updateDatabase.js"
 
-export default function assignMethods(character) {
+export function assignMethods(character) {
 
 	// customMethods
 	character.hasEnoughHPOrMP = customMethods.hasEnoughHPOrMP;
@@ -65,13 +62,6 @@ export default function assignMethods(character) {
 	// database
 	character.updateDatabase = updateDatabase;
 
-	// startup
-	if(character.ctype !== 'merchant') {
-		character.startup = startup;
-	} else {
-		character.startupMerchant = startupMerchant;
-	}
-
 	// merchant
 	if(character.ctype !== 'merchant') return;
 	character.merchantOnCM = merchantOnCM;
@@ -79,6 +69,6 @@ export default function assignMethods(character) {
 	character.merchantRoutine = merchantRoutine;
 	character.autoUpgrade = autoUpgrade;
 	character.handleLoot = handleLoot;
-	character.bankItems = bankItems;
+	character.determineNewUpgradeTarget = determineNewUpgradeTarget;
 
 }

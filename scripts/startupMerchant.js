@@ -1,35 +1,47 @@
 import * as impure from './library/impure.js'
+import { errorHandler } from './library/errorHandler.js'
+import { assignMethods } from "./library/assignMethods.js"
+import { LocalStorage } from "./LocalStorage.js"
 
-const partyList = ['Desk', 'Stool', 'Shelf'];
+const partyList = ['Desk', 'Stool', 'Shelf', 'Roof'];
 const mageName = 'Desk';
 const itemsToBuy = {
 	'mpot0': 9999,
 	'hpot1': 9999
 };
-const itemsToSell = ['ringsj', 'hpbelt', 'hpamulet'];
+const itemsToSell = ['ringsj', 'hpbelt', 'hpamulet', 'gphelmet'];
 const restSpot = {map: 'main', x: -210, y: -80}
 const grindSpot = {map: 'main', x: 1480, y: -390}
 const exitBank = {map: 'main', x: 168, y: -134}
 const upgradeList = {
-//	staff: {level: 9, q: 1, buy: 1},
 	vitring: {level: 2},
-	dexring: {level: 2},
-	strring: {level: 2},
-	intring: {level: 2},
-//	helmet: {level: 9, q: 1, buy: 0},
-	pants: {level: 9, q: 3, buy: 0},
-	gloves: {level: 9, q: 3, buy: 0},
+	dexring: {level: 3},
+	strring: {level: 3},
+	intring: {level: 3},
+	intbelt: {level: 2},
+	dexbelt: {level: 2},
+	strbelt: {level: 2},
+	intamulet: {level: 3},
+	dexamulet: {level: 3},
+	stramulet: {level: 3},
+	phelmet: {level: 7},
 	quiver: {level: 7},
 	wcap: {level: 8},
 	wattire: {level: 8},
 	wshoes: {level: 8},
+	wgloves: {level: 8},
+	wbreeches: {level: 8},
 };
-const upgradeMinGold = 2999999;
+const itemsToDeposit = ['armorbox','weaponbox','scroll1','cscroll1','leather','ringjs'];
+for(const itemName in upgradeList) itemsToDeposit.push(itemName);
+const upgradeMinGold = 9999999;
 
 export default async function startupMerchant() {
 
+	assignMethods(this);
+
 	const callStartupMethods = () => {
-		this.handleMagiportInvite(mageName, () => this.magiportAccepted = true);
+		this.handleMagiportInvite(mageName);
 		this.gameMessages();
 		this.merchantOnCM(partyList);
 		this.updateDatabase();
@@ -43,9 +55,7 @@ export default async function startupMerchant() {
 	await new Promise(r => setTimeout(r, 3000));
 
 	callStartupMethods();
-	setInterval( () => this.merchantLoop(), 1000);
-
-	// merchantRoutine and autoUpgrade
+	const merchantLoopInterval = setInterval( () => this.merchantLoop(), 1000);
 
 	let routineCooldown = false;
 	let cooldownTimeout;
@@ -54,24 +64,23 @@ export default async function startupMerchant() {
 		if(cooldownTimeout) clearTimeout(cooldownTimeout);
 		routineCooldown = true;
 		cooldownTimeout = setTimeout( () => routineCooldown = false, 60000 * 10 );
-
 	}
 
 	const handleDeath = async () => {
-		impure.functionMessage(this.name+ ' died, respawning', startupMerchant.name);
+		impure.timePrefix(this.name+ ' died, respawning', startupMerchant.name);
 		await new Promise(r => setTimeout(r, 15000));
 		await this.respawn()
 		await new Promise(r => setTimeout(r, 3000));
-		impure.functionMessage(this.name + ' respawned', startupMerchant.name);
+		impure.timePrefix(this.name + ' respawned', startupMerchant.name);
 	}
 
 	const merchantActivity = async () => {
-		impure.functionMessage('Moving to bank to deposit items', startupMerchant.name);
+		impure.timePrefix('Moving to bank to deposit items', startupMerchant.name);
 		await this.closeMerchantStand();
 		await this.smartMove('bank');
 		await new Promise(r => setTimeout(r, 3000));
-		impure.functionMessage('Depositing items to bank', startupMerchant.name);
-		await this.depositItemsToBank(Object.keys(upgradeList));
+		impure.timePrefix('Depositing items to bank', startupMerchant.name);
+		await this.depositItemsToBank(itemsToDeposit);
 		await this.smartMove(exitBank);
 		await this.merchantRoutine(partyList, itemsToBuy, itemsToSell, restSpot, grindSpot);
 	}
@@ -90,6 +99,7 @@ export default async function startupMerchant() {
 			const upgradeResult = await this.autoUpgrade(upgradeList, upgradeMinGold, restSpot);
 			if(
 				upgradeResult === 'Finished all upgrades' || 
+				upgradeResult === 'Not enough space in inventory' || 
 				upgradeResult === 'Not enough gold' 
 			) {
 				await this.openMerchantStand();
@@ -100,12 +110,14 @@ export default async function startupMerchant() {
 
 		} catch (error) {
 
-			console.debug(error);	
+			errorHandler(error);
 
 		}
 
-		await new Promise(r => setTimeout(r, 10000));
+		await new Promise(r => setTimeout(r, 500));
 
 	}
+
+	clearInterval(merchantLoopInterval);
 
 };

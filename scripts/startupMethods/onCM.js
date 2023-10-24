@@ -1,5 +1,6 @@
 import * as impure from "../library/impure.js"
 import * as utils from "../library/utils.js"
+import { errorHandler } from "../library/errorHandler.js"
 
 export function combatantOnCM(merchantName, consumablesNeeded, sendLootBlacklist) {
 
@@ -15,6 +16,7 @@ export function combatantOnCM(merchantName, consumablesNeeded, sendLootBlacklist
 		if( !utils.stringIsJSON(message) ) return;
 		message = JSON.parse(message);
 
+		// respond to merchant requests
 		if(message.routine) {
 			character.requestConsumables(merchantName, consumablesNeeded);
 			character.sendLootToMerchant(merchantName, sendLootBlacklist);
@@ -24,16 +26,18 @@ export function combatantOnCM(merchantName, consumablesNeeded, sendLootBlacklist
 		if(message.unequip /* equipment slot to unequip */) {
 
 			const equipmentOnSlot = character.slots[message.unequip];
-
 			const unequipAndSendBack = async slot => {
-
-				await character.unequip(slot).catch(console.error);
+				while(character.ready) {
+					await character.unequip(slot).catch(errorHandler);
+					if(!character.slots[slot]) break;
+					await new Promise(r=>setTimeout(r,1000));
+				}
 				for(let i = 0; i < character.items.length; i++) {
 					const item = character.items[i];
 					if(!item) continue;
 					if(item.name !== equipmentOnSlot.name) continue;
 					if(item.level !== equipmentOnSlot.level) continue;
-					character.sendItem(merchantName, i).catch(console.error);
+					character.sendItem(merchantName, i).catch(errorHandler);
 					break;
 				}
 
@@ -82,7 +86,7 @@ export function merchantOnCM(partyList) {
 				availableQ /= 3; // split down availableQ so that if item.q updates and availableQ no longer reflects item.q, the character won't send too many items
 				const sendQ = list[slot] <= availableQ ? list[slot] : availableQ; // if amount requested is less than amount available, send amount requested, otherwise, send amount available 
 				if(sendQ === 0) break;
-				this.sendItem(CMData.name, i, sendQ).catch(console.error);
+				await this.sendItem(CMData.name, i, sendQ).catch(errorHandler);
 				list[slot] -= sendQ;
 				break;
 

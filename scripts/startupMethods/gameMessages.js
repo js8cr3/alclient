@@ -67,7 +67,7 @@ export default function gameMessages() {
 
 		// log combined damage
 		if(data.stacked && data.id && data.id === character.id) {
-			impure.timePrefix(character.id+' recieved combined damage', '#000');
+			impure.timePrefix(character.id+' recieved combined damage', '', '#000');
 		}
 
 		// if attacked by monster, add monster to 'targetHistory' map
@@ -76,7 +76,7 @@ export default function gameMessages() {
 			if(attacker) targetHistory.set(attacker.id, attacker.name);
 			// if hit data has 'kill' and data id is character name, log death
 			if(!data.kill) return;
-			impure.timePrefix(character.id + ' defeated by ' + targetHistory.get(data.hid), '#702500');
+			impure.timePrefix(character.id + ' defeated by ' + targetHistory.get(data.hid), '', '#702500');
 		}
 
 		// log when monsters are killed by character
@@ -94,13 +94,13 @@ export default function gameMessages() {
 			// log gold drop
 			let goldMessage = data.gold+' gold';
 			if(character.partyLength) goldMessage += ' * ' + character.partyLength;  
-			impure.timePrefix(goldMessage, '#FF0');	
+			impure.timePrefix(goldMessage, '', '#FF0');	
 
 			// log item drop
 			if(!data.items) return;
 			if(data.items.length === 0) return;
 			data.items.forEach( (item, index) => {
-				impure.timePrefix(`${data.items[index].looter} got a ${data.items[index].name}`, '#0FF');
+				impure.timePrefix(`${data.items[index].looter} got a ${data.items[index].name}`, '', '#0FF');
 			} );
 
 		}
@@ -122,12 +122,12 @@ export default function gameMessages() {
 
 			// log party member joining
 			if(data.message.match(regex)) {
-				impure.timePrefix(data.message, '#6020c0')
+				impure.timePrefix(data.message, '', '#6020c0')
 			};
 
 			// log party member leaving
 			if(data.leave === 1) {
-				impure.timePrefix(data.message, '#654a25')
+				impure.timePrefix(data.message, '', '#654a25')
 			};
 
 		}
@@ -141,16 +141,16 @@ export default function gameMessages() {
 		const logBasedOnResponse = response => {
 			switch(response) {
 				case 'upgrade_success':
-					impure.timePrefix('Item upgrade succeeded', '#fff');
+					impure.timePrefix('Item upgrade succeeded', '', '#fff');
 					break;
 				case 'upgrade_fail':
-					impure.timePrefix('Item upgrade failed', '#f00');
+					impure.timePrefix('Item upgrade failed', '', '#f00');
 					break;
 				case 'compound_success':
-					impure.timePrefix('Item combination succeeded', '#fff');
+					impure.timePrefix('Item combination succeeded', '', '#fff');
 					break;
 				case 'upgrade_fail':
-					impure.timePrefix('Item combination failed', '#fff');
+					impure.timePrefix('Item combination failed', '', '#fff');
 			}
 		}
 
@@ -171,38 +171,38 @@ export default function gameMessages() {
 
 				// log sell to vendor events
 				if(data.place === 'sell') {
-					impure.timePrefix(`${character.name} sold ${data.item.name}+${ typeof data.item.level !== 'undefined' ? data.item.level : '' }${ data.item.q > 1 ? `(x${data.item.q})` : '' } for ${data.gold} gold`, '#777');
+					impure.timePrefix(`${character.name} sold ${data.item.name}+${ typeof data.item.level !== 'undefined' ? data.item.level : '' }${ data.item.q > 1 ? `(x${data.item.q})` : '' } for ${data.gold} gold`, '', '#777');
 					break;
 				};
 
 				// log receiving gold from players
 				if(data.name) {
-					impure.timePrefix(`${character.name} received ${data.gold} gold from ${data.name}`, '#FF0');
+					impure.timePrefix(`${character.name} received ${data.gold} gold from ${data.name}`, '', '#FF0');
 					break;
 				}
 
 			case 'gold_sent':
 
 				// log sending gold to players	
-				impure.timePrefix(`${character.name} sent ${data.gold} gold to ${data.name}`, '#FF0');
+				impure.timePrefix(`${character.name} sent ${data.gold} gold to ${data.name}`, '', '#FF0');
 				break;
 
 			case 'item_received':
 
 				// log receiving items from players
-				impure.timePrefix(`${character.name} received ${data.item}${ data.q > 1 ? `(x${data.q})` : '' } from ${data.name}`, '#6495ed');
+				impure.timePrefix(`${character.name} received ${data.item}${ data.q > 1 ? `(x${data.q})` : '' } from ${data.name}`, '', '#6495ed');
 				break;
 
 			case 'item_sent':
 
 				// log sending items to players
-				impure.timePrefix(`${character.name} sent ${data.item}${ data.q > 1 ? `(x${data.q})` : '' } to ${data.name}`, '#6495ed');
+				impure.timePrefix(`${character.name} sent ${data.item}${ data.q > 1 ? `(x${data.q})` : '' } to ${data.name}`, '', '#6495ed');
 				break;
 
 			case 'buy_success':
 
 				// log buying items from vendors
-				impure.timePrefix(`${character.name} brought ${data.name}${ data.q > 1 ? `(x${data.q})` : '' } with ${data.cost} gold`, '#777');
+				impure.timePrefix(`${character.name} brought ${data.name}${ data.q > 1 ? `(x${data.q})` : '' } with ${data.cost} gold`, '', '#777');
 				break;
 
 		}

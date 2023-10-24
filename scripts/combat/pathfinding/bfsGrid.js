@@ -8,7 +8,7 @@ function bfsGrid(grid, s /* start */) {
 	// possible return values: 
 		// 'no path'
 		// 'arrived'
-		// reconstructFromPathTrackGrid( found )
+		// grid path
 
 	const pathfindGrid = structuredClone(grid);
 

@@ -1,5 +1,6 @@
-import * as impure from '../library/impure.js'
 import { errorHandler } from '../library/errorHandler.js'
+import { runPromiseUntilSuccess } from '../library/utils.js'
+import { LocalStorage } from "../LocalStorage.js"
 
 export {
 	retreatToSafety, 
@@ -13,14 +14,17 @@ export {
 // active 
 
 async function retreatToSafety(safeSpot) {
-	await this.smartMove(safeSpot)
+	await this.smartMove(safeSpot).catch(errorHandler)
 }
 
 // rip
 
 async function handleDeath() {
 	await new Promise(r => setTimeout(r, 15000));
-	await this.respawn();
+	const respawnAttempt = () => this.respawn();
+	await runPromiseUntilSuccess(respawnAttempt, errorHandler).catch( () => {
+		if(character.rip) throw new Error('Respawn error');
+	} );
 }
 
 // inactive
@@ -35,13 +39,22 @@ async function teleportToSpot() {
 
 	const waitForBlink = async (x, y) => {
 		await waitForMP();
-		await this.blink(x, y);
+        x = Math.round(x / 10) * 10
+        y = Math.round(y / 10) * 10
+		const blinkAttempt = () => this.blink(x, y);
+		await runPromiseUntilSuccess(blinkAttempt, errorHandler);
+	}
+
+	if(this.map !== 'main' && this.map !== 'winterland') {
+		const toMainAttempt = () => this.smartMove('main');
+		await runPromiseUntilSuccess(toMainAttempt, errorHandler);
 	}
 
 	if(this.map === 'main') {
 		await waitForBlink(-83, -422);
 		await new Promise(r => setTimeout(r, 3000));
-		await this.smartMove({map: 'winterland', x: -8, y: -337});
+		const smartMoveAttempt = () => this.smartMove({map: 'winterland', x: -8, y: -337});
+		await runPromiseUntilSuccess(smartMoveAttempt, errorHandler);
 	}
 
 	await waitForBlink(-442,-2154);
@@ -50,7 +63,8 @@ async function teleportToSpot() {
 }
 
 function requestMagiport(name) {
-	this.sendCM([name], 'magiport');
+	this.sendCM([name], "{\"magiport\": true}").catch(errorHandler);
+
 }
 
 // startup
@@ -66,14 +80,14 @@ async function handleMagiportRequest(partyNameList) {
 			break;
 		}   
 		if(!isPartyMember) return;
-		if(data.message !== 'magiport') return;
+		if(!JSON.parse(data.message).magiport) return;
 
-		this.magiportCheck[data.name] = 'magiport';
+		LocalStorage.magiportCheck[data.name] = 'magiport';
 
 	} );
 
-	this.magiportCheck = {};
-	for(const name of partyNameList) this.magiportCheck[name] = null;
+	LocalStorage.magiportCheck = {};
+	for(const name of partyNameList) LocalStorage.magiportCheck[name] = null;
 
 	const useMagiport = name => { return new Promise( async (resolve, reject) => {
 		const cleanup = setTimeout( () => reject('useMagiport magiport timeout'), 5000);
@@ -90,10 +104,10 @@ async function handleMagiportRequest(partyNameList) {
 	while(this.ready) {
 
 		await new Promise(r => setTimeout(r, 1000));
-		if(this.combatState !== 'ready' && this.combatState !== 'active') continue;
+		if(LocalStorage.combatState !== 'ready' && LocalStorage.combatState !== 'active') continue;
 
 		// check whether anyone is requesting magiport
-		const mList = this.magiportCheck;
+		const mList = LocalStorage.magiportCheck;
 		let magiportTarget;
 		for(const name in mList) {
 			if(!mList[name]) continue;
@@ -108,11 +122,11 @@ async function handleMagiportRequest(partyNameList) {
 			while(this.mp < 1000 && this.ready ) {
 				await new Promise(r => setTimeout(r, 1000));
 			}
-			await useMagiport(magiportTarget).then( () => mSuccess = true ).catch(console.error);
+			await useMagiport(magiportTarget).then( () => mSuccess = true ).catch(errorHandler);
 			await new Promise(r=>setTimeout(r,1000))
 		}
 
-		this.magiportCheck[magiportTarget] = null;
+		LocalStorage.magiportCheck[magiportTarget] = null;
 
 	}
 }

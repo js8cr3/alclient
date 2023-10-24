@@ -11,8 +11,9 @@ export {
 function aggroKiteStrategy(grid, start, range) {
 
 	// possible values:
-		// 'startType error'
-		// bfsGrid()
+		// pathfinding()
+			// 'no path'
+			// bfsGrid()
 		// 'outside attack range'
 		// 'stuck in obstacle'
 
@@ -30,36 +31,19 @@ function aggroKiteStrategy(grid, start, range) {
 	const transformGrid = () => {
 
 		const symbolTransformList = {};
-		symbolTransformList[symbolA] = null;
-		symbolTransformList[symbolB] = null;
-		symbolTransformList[symbolC] = null;
-		symbolTransformList[symbolD] = null;
+		const listKeys = [symbolA, symbolB, symbolC, symbolD];
 
-		switch(startType) {
-			case symbolA:
-				symbolTransformList[symbolA] = pathSymbol;
-				symbolTransformList[symbolB] = wallSymbol;
-				symbolTransformList[symbolC] = wallSymbol;
-				symbolTransformList[symbolD] = wallSymbol;
-				break;
-			case symbolB:
-				symbolTransformList[symbolA] = destSymbol;
-				symbolTransformList[symbolB] = pathSymbol;
-				symbolTransformList[symbolC] = wallSymbol;
-				symbolTransformList[symbolD] = wallSymbol;
-				break;
-			case symbolC:
-				symbolTransformList[symbolA] = destSymbol;
-				symbolTransformList[symbolB] = destSymbol;
-				symbolTransformList[symbolC] = pathSymbol;
-				symbolTransformList[symbolD] = wallSymbol;
-				break;
-			case symbolD:
-				symbolTransformList[symbolA] = destSymbol;
-				symbolTransformList[symbolB] = destSymbol;
-				symbolTransformList[symbolC] = destSymbol;
-				symbolTransformList[symbolD] = pathSymbol;
-		};
+		const symbolSwitch = {}
+		symbolSwitch[symbolA] = [pathSymbol, wallSymbol, wallSymbol, wallSymbol];
+		symbolSwitch[symbolB] = [destSymbol, pathSymbol, wallSymbol, wallSymbol];
+		symbolSwitch[symbolC] = [destSymbol, destSymbol, pathSymbol, wallSymbol];
+		symbolSwitch[symbolD] = [destSymbol, destSymbol, destSymbol, pathSymbol];
+
+		let listValues = symbolSwitch[startType];
+
+		for(let i = 0; i < listKeys.length; i++) {
+			symbolTransformList[listKeys[i]] = listValues[i];
+		}
 			
 		const transformCell = (row, cell, cellIndexInRow) => {
 			for(const symbolToChange in symbolTransformList) {
@@ -123,8 +107,8 @@ function aggroKiteStrategy(grid, start, range) {
 function followLeaderStrategy(grid, start, boundary, gridUnit) {
 
 	// possible values:
-		// 'startType error'
-		// bfs()
+		// pathfinding()
+			// bfsGrid()
 		// 'stuck in obstacle'
 
 	let deep = structuredClone(grid);
@@ -186,25 +170,39 @@ function followLeaderStrategy(grid, start, boundary, gridUnit) {
 
 		transformGrid();
 
-		const setDestinationToTarget = () => {
+		const findDestinationCells = () => {
+
 			const follow = character.getPlayerByName('Stool');
-			if(!follow) {
-				return 'target to follow does not exist';
-			}
+			if(!follow) return;
+
 			const targetCoor = translatePositionToGridCoor([follow.x, follow.y], boundary, gridUnit);
-			if(!targetCoor) return 'no path';
+			if(!targetCoor) return;
+
 			const currentArea = fill(deep, start, pathSymbol);
 			const endCoor = closestCellToTarget(deep, currentArea, targetCoor)
-			deep[endCoor[1]][endCoor[0]] = wallSymbol;
+
+			const destinationCells = [];
+			// set the 8 cells surrounding the target as destinations
 			for(const cell of currentArea) {
 				if( Math.abs( endCoor[0] - cell[0] ) > 1 ) continue;
 				if( Math.abs( endCoor[1] - cell[1] ) > 1 ) continue;
-				deep[cell[1]][cell[0]] = destSymbol;
+				destinationCells.push(cell);
 			}
+
+			return { target: endCoor, destinationCells };
+
 		}
 
 		if(startType === symbolB || startType === symbolA) {
-			setDestinationToTarget();
+
+			const dests = findDestinationCells();
+			if(!dests) return 'no path';
+
+			deep[dests.target[1]][dests.target[0]] = wallSymbol;
+			for(const cell of dests.destinationCells) {
+				deep[cell[1]][cell[0]] = destSymbol;
+			}
+
 		}
 
 		let pathToDestination = bfsGrid(deep, start);

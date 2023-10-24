@@ -1,4 +1,6 @@
 import * as impure from "../library/impure.js"
+import { errorHandler } from "../library/errorHandler.js"
+import { LocalStorage } from "../LocalStorage.js"
 
 export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
@@ -15,56 +17,49 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 			// reject(upgradeError)
 			// reject('Upgrade timeout')
 
-		const listItem = upgradeList[this.currentUpgrade];
-		let currentUpgradeLocation = findItemUnderLevel(this.currentUpgrade, listItem.level);
+		const listItem = upgradeList[LocalStorage.currentUpgrade];
+		let currentUpgradeLocation = findItemUnderLevel(LocalStorage.currentUpgrade, listItem.level);
 
 		if(!currentUpgradeLocation) {
 			// if buy value isn't a truthy, and there is no more of the type in inventory, set currentUpgrade to undefined and resolve
-			if( !this.upgradeBuy ) {
-				this.currentUpgrade = undefined;
-				impure.functionMessage('No more in inventory to upgrade', autoUpgrade.name);
+			if( !LocalStorage.upgradeBuy ) {
+				LocalStorage.currentUpgrade = undefined;
+				impure.timePrefix('No more in inventory to upgrade', autoUpgrade.name);
 				return resolve('No more in inventory to upgrade');
 			}
 			// if buy value is true, and item of type not found, buy it
-			await this.buy(this.currentUpgrade)
-			.then( data => currentUpgradeLocation = data );
+			await character.buy(LocalStorage.currentUpgrade)
+			.then( data => currentUpgradeLocation = data )
+			.catch(reject);
 		};
 
 		// buy scroll depending on grade
 
-		const scrollType = upgradeScrollTypeNeeded(this.items[currentUpgradeLocation]);
+		const scrollType = upgradeScrollTypeNeeded(character.items[currentUpgradeLocation]);
 		let scrollLocation = findItemUnderLevel(scrollType);
 
 		if(!scrollLocation) {
-			await this.buy(scrollType)
-			.then( data => scrollLocation = data );
+			await character.buy(scrollType)
+			.then( data => scrollLocation = data )
+			.catch(reject);
 		}
 
 		// check if there is any ongoing upgrades
-		if(this.q.upgrade) {
-			impure.functionMessage(`Waiting for previous upgrade to finish (${this.q.upgrade.len}ms)`, autoUpgrade.name, '#f00');
-			await new Promise( r => setTimeout(r, this.q.upgrade.len + 2000) );
+		if(character.q.upgrade) {
+			impure.timePrefix(`Waiting for previous upgrade to finish (${character.q.upgrade.len}ms)`, autoUpgrade.name, '#f00');
+			await new Promise( r => setTimeout(r, character.q.upgrade.len + 2000) );
 		}
 
 		// upgrade
 
-		if(this.items[currentUpgradeLocation].level >= 4) {
-			await this.massProduction().catch(console.error);
+		impure.timePrefix(`Upgrading ${character.items[currentUpgradeLocation].name}+${character.items[currentUpgradeLocation].level}`, autoUpgrade.name, '#777');
+		
+		if(character.items[currentUpgradeLocation].level >= 4) {
+			await character.massProduction().catch(errorHandler);
 		}
-
-		impure.functionMessage(`Upgrading ${this.items[currentUpgradeLocation].name}+${this.items[currentUpgradeLocation].level}`, autoUpgrade.name, '#777');
-		await this.upgrade(currentUpgradeLocation, scrollLocation).catch(upgradeErrorHandler);
+		await character.upgrade(currentUpgradeLocation, scrollLocation).catch(reject);
 
 		return resolve('Upgrade finished');
-		
-		function upgradeErrorHandler(error) {
-			const timeoutRegex = /^Error: Failed to upgrade \(Timeout: .*ms\)$/;
-			if( error.toString().match(timeoutRegex) ) {
-				impure.functionMessage(error.toString(), autoUpgrade.name, '#F00');
-				return reject('Upgrade timeout');
-			}
-			reject(error);
-		}
 
 	}
 
@@ -72,12 +67,12 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
 		// check if there is enough items at certain levels
 
-		const listItem = upgradeList[this.currentUpgrade];
+		const listItem = upgradeList[LocalStorage.currentUpgrade];
 		let currentCompoundLocationArray;
 		let compoundLevel;
 
 		for(let level = 0; level < listItem.level; level++) {
-			const locationArray = findItemsAtLevel(this.currentUpgrade, level);
+			const locationArray = findItemsAtLevel(LocalStorage.currentUpgrade, level);
 			if(locationArray.length < 3) continue;
 			currentCompoundLocationArray = locationArray;
 			compoundLevel = level;
@@ -87,8 +82,8 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 		// if there isn't enough items to compound, set this.currentUpgrade to undefined and resolve
 
 		if(typeof compoundLevel === 'undefined') {
-			this.currentUpgrade = undefined;
-			impure.functionMessage('No more in inventory to compound', autoUpgrade.name);
+			LocalStorage.currentUpgrade = undefined;
+			impure.timePrefix('No more in inventory to compound', autoUpgrade.name);
 			return resolve('No more in inventory to compound');
 		}
 
@@ -98,34 +93,25 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
 		// buy scroll depending on grade
 
-		const scrollType = compoundScrollTypeNeeded(this.items[ sampleSlot ]);
-		let scrollLocation = this.locateItem(scrollType);
+		const scrollType = compoundScrollTypeNeeded(character.items[ sampleSlot ]);
+		let scrollLocation = character.locateItem(scrollType);
 		if(!scrollLocation) {
-			await this.buy(scrollType)
+			await character.buy(scrollType)
 			.then( data => scrollLocation = data )
+			.catch(reject);
 		}
 
 		// check if there is any ongoing compounds
-		if(this.q.compound) {
-			impure.functionMessage(`Waiting for previous compound to finish (${this.q.compound.len}ms)`, autoUpgrade.name, '#f00');
-			await new Promise( r => setTimeout(r, this.q.compound.len + 2000) );
+		if(character.q.compound) {
+			impure.timePrefix(`Waiting for previous compound to finish (${character.q.compound.len}ms)`, autoUpgrade.name, '#f00');
+			await new Promise( r => setTimeout(r, character.q.compound.len + 2000) );
 		}
 
 		// compound
 
-		const compoundErrorHandler = error => {
-			const timeoutRegex = /^Error: Failed to compound \(Timeout: .*ms\)$/;
-			if( error.toString().match(timeoutRegex) ) {
-				impure.functionMessage(error.toString(), autoUpgrade.name, '#F00');
-				return reject('Compound timeout');
-			}
-			reject(error);
-		}
-
-		impure.functionMessage(`Compounding ${this.items[sampleSlot].name}+${this.items[sampleSlot].level}`, autoUpgrade.name, '#777');
-		await this.massProduction().catch(console.error);
-		await this.compound(...currentCompoundLocationArray, scrollLocation)
-		.catch(compoundErrorHandler);
+		impure.timePrefix(`Compounding ${character.items[sampleSlot].name}+${character.items[sampleSlot].level}`, autoUpgrade.name, '#777');
+		await character.massProduction().catch(errorHandler);
+		await character.compound(...currentCompoundLocationArray, scrollLocation).catch(reject);
 
 		resolve('Compound finished');
 
@@ -134,9 +120,10 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 	// return if certain conditions are met
 	// possible results: 
 		// 'Not enough gold'
-		// await this.bankItems()
+		// await this.determineNewUpgradeTarget()
 			// 'Finished all upgrades'
-			// 'Banked items'		
+			// 'Not enough space in inventory'
+			// 'Found upgrade target'
 		// await new Promise(upgradeProcess)
 			// resolve('No more in inventory to upgrade')
 			// resolve('Upgrade finished')
@@ -148,8 +135,8 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 			// reject('Compound timeout')
 			// unknown error
 
-	if(this.gold < minGold) {
-		impure.functionMessage(`Current gold (${this.gold}) below threshold (${minGold})`, autoUpgrade.name);
+	if(character.gold < minGold) {
+		impure.timePrefix(`Current gold (${this.gold}) below threshold (${minGold})`, autoUpgrade.name);
 		return 'Not enough gold';
 	};
 
@@ -157,23 +144,23 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 	// this is to prevent limitlessly upgrading vendor equipment
 
 	if(
-		this.currentUpgrade && 
-		this.upgradeBuy && 
-		findItemAtOrAboveLevel(this.currentUpgrade, upgradeList[this.currentUpgrade].level)
+		LocalStorage.currentUpgrade && 
+		LocalStorage.upgradeBuy && 
+		findItemAtOrAboveLevel(LocalStorage.currentUpgrade, upgradeList[LocalStorage.currentUpgrade].level)
 	) {
-		impure.functionMessage(`${this.currentUpgrade} reached target level (${upgradeList[this.currentUpgrade].level})`, autoUpgrade.name);
-		this.upgradeBuy = false;
+		impure.timePrefix(`${LocalStorage.currentUpgrade} reached target level (${upgradeList[LocalStorage.currentUpgrade].level})`, autoUpgrade.name);
+		LocalStorage.upgradeBuy = false;
 	}
 
 	// if this.currentUpgrade is undefined, check bank to determine new this.currentUpgrade
 
-	if(!this.currentUpgrade) {
-		await this.closeMerchantStand()
-		impure.functionMessage(`No target to upgrade, checking bank to decide target`, autoUpgrade.name);
-		await this.smartMove('bank')
-		const bankResult = await this.bankItems(upgradeList, restSpot);
-		await this.smartMove(restSpot);
-		impure.functionMessage(bankResult, autoUpgrade.name);
+	if(!LocalStorage.currentUpgrade) {
+		await character.closeMerchantStand().catch(errorHandler)
+		impure.timePrefix(`No target to upgrade, checking bank to decide target`, autoUpgrade.name);
+		await character.smartMove('bank')
+		const bankResult = await character.determineNewUpgradeTarget(upgradeList);
+		await character.smartMove(restSpot);
+		impure.timePrefix(bankResult, autoUpgrade.name);
 		return bankResult;
 	}
 
@@ -181,8 +168,8 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
 	try { 
 
-		await this.openMerchantStand();
-		const upgradeTarget = this.G.items[this.currentUpgrade];
+		await character.openMerchantStand();
+		const upgradeTarget = character.G.items[LocalStorage.currentUpgrade];
 		if( upgradeTarget.upgrade ) {
 			return await new Promise(upgradeProcess);
 		} else if ( upgradeTarget.compound ) {
@@ -193,11 +180,19 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
 	} catch (error) {
 
-		if( error === 'Upgrade timeout' | error === 'Compound timeout' ) {
-			await new Promise( r => setTimeout(r, 10000) );
+		const timeoutErrorList = [
+			/^Error: Failed to compound\(Timeout: .*ms\)$/,
+			/^Error: Failed to upgrade\(Timeout: .*ms\)$/
+		];
+
+		for(const regex of timeoutErrorList) {
+			if( regex.test(error.toString()) ) {
+				await new Promise( r => setTimeout(r, 10000) );
+				break;
+			}
 		}
 			
-		return error;
+		throw error;
 
 	}
 
@@ -211,11 +206,15 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 		}
 	}
 
-	function upgradeScrollTypeNeeded(slot /* inventory slot */) {
-		 if(character.G.items[slot.name].grades[0] === 0) throw new Error('Scroll type check unimplemented');
-		if( slot.level < character.G.items[slot.name].grades[0] ) return 'scroll0';
-		return 'scroll1';
-	}
+    function upgradeScrollTypeNeeded(slot /* inventory slot */) {
+        if(character.G.items[slot.name].grades[0] === 0) {
+            if( slot.level < character.G.items[slot.name].grades[1] ) return 'scroll1';
+            return 'scroll2';
+        };
+        if( slot.level < character.G.items[slot.name].grades[0] ) return 'scroll0';
+        if( slot.level < character.G.items[slot.name].grades[1] ) return 'scroll1';
+        return 'scroll2';
+    }
 
 	function findItemsAtLevel(name, targetLevel) {
 		let indexArray = [];
@@ -244,6 +243,16 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
            return i;
         }
 	};
+
+	function findItemAtOrAboveLevel(name, targetLevel) {
+		for(let i = 0; i < character.items.length; i++) {
+			const item = character.items[i];
+			if(!item) continue;
+			if(item.name !== name) continue;
+			if(targetLevel && item.level < targetLevel) continue;
+			return i;
+		}
+	}
 
 
 }

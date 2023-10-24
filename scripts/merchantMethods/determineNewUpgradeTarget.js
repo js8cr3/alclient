@@ -1,6 +1,8 @@
 import * as impure from "../library/impure.js"
+import { errorHandler } from '../library/errorHandler.js'
+import { LocalStorage } from "../LocalStorage.js"
 
-export default async function bankItems(upgradeList, restSpot) {
+export default async function determineNewUpgradeTarget(upgradeList) {
 
     if(!this.ready) throw new Error('Character not ready');
     if(this.map !== 'bank') throw new Error('Not in bank');
@@ -18,21 +20,23 @@ export default async function bankItems(upgradeList, restSpot) {
 	const orderedUpgradeList = organizeUpgradeList();
 	determineUpgradeTarget();
 
-	if(!character.currentUpgrade) {
-		impure.functionMessage(`No upgrade target found`, bankItems.name);
+	if(!LocalStorage.currentUpgrade) {
+		impure.timePrefix(`No upgrade target found`, determineUpgradeTarget.name);
 		return 'Finished all upgrades';
 	}
 
 	for (const pack of Object.keys(bank)) {
 		for (let i = 0; i < bank[pack].length; i++) {
-			if(character.countEmptySlots() <= 2) return 'Banked items'; // break if there's less than 3 empty slots in inventory
+			if(character.countEmptySlots() <= 2) return 'Not enough space in inventory'; // break if there's less than 3 empty slots in inventory
 			const item = bank[pack][i];
 			if(!item) continue;
-			if(whetherToWithdraw(item)) await character.withdrawItem(pack, i);
+			if(whetherToWithdraw(item)) {
+				character.withdrawItem(pack, i).catch(errorHandler);
+			}
 		}
 	}
 
-	return 'Banked items';
+	return 'Found upgrade target';
 
 	// if an upgradeList item has buy value of true, make sure a quota quantity is provided
 	function quotaIsProvided() {
@@ -129,11 +133,11 @@ export default async function bankItems(upgradeList, restSpot) {
 			!upgradableExistsInBank(itemName) && 
 			upgradeList[itemName].buy
 		) {
-			character.upgradeBuy = true;
+			LocalStorage.upgradeBuy = true;
 		} else { 
-			character.upgradeBuy = false;
+			LocalStorage.upgradeBuy = false;
 			if(upgradeList[itemName].buy) {
-				impure.functionMessage(`Upgrading leftover ${itemName}s in bank`, bankItems.name);
+				impure.timePrefix(`Upgrading leftover ${itemName}s in bank`, determineNewUpgradeTarget.name);
 			}
 		};
 
@@ -146,9 +150,9 @@ export default async function bankItems(upgradeList, restSpot) {
 
 			if( character.G.items[itemName].upgrade && !whetherToUpgrade(itemName) ) continue;
 			if( character.G.items[itemName].compound && !whetherToCompound(itemName) ) continue;
-			character.currentUpgrade = itemName;
+			LocalStorage.currentUpgrade = itemName;
 			whetherToBuy(itemName);
-			impure.functionMessage(`Current upgrade target: ${character.currentUpgrade}`, bankItems.name);
+			impure.timePrefix(`Current upgrade target: ${LocalStorage.currentUpgrade}`, determineNewUpgradeTarget.name);
 			break;
 
 		}
@@ -156,11 +160,9 @@ export default async function bankItems(upgradeList, restSpot) {
 	}
 
 	function whetherToWithdraw(item /*bank slot*/) {
-		if(item.name !== character.currentUpgrade) return;
-		if(item.level >= upgradeList[character.currentUpgrade].level) return;
+		if(item.name !== LocalStorage.currentUpgrade) return;
+		if(item.level >= upgradeList[LocalStorage.currentUpgrade].level) return;
 		return true;
 	}
-
-		
 
 }

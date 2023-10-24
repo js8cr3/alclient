@@ -1,3 +1,5 @@
+import { errorHandler } from "../library/errorHandler.js"
+
 export default async function handleLoot(itemsToBuy, itemsToSell) {
 
 	if(!this.ready) throw new Error('Character not ready');
@@ -16,7 +18,7 @@ export default async function handleLoot(itemsToBuy, itemsToSell) {
 				const amountToBuy = Math.min( qNeeded - item.q, Math.floor(this.gold / itemCost) );
 				if(!amountToBuy) break;
 
-				await this.buy( item.name, amountToBuy );
+				await this.buy( item.name, amountToBuy ).catch(errorHandler);
 
 				return resolve('Buy success');
 
@@ -28,11 +30,11 @@ export default async function handleLoot(itemsToBuy, itemsToSell) {
 
 	};
 
-	const checkSlotForSelling = async (item, index) => {
+	const checkSlotForSelling = (item, index) => {
 		for( const listItem of itemsToSell ) {
 			if(item.name !== listItem) continue;
 			if(item.level >= 1) continue;
-			return await this.sell(index, item.q);
+			return this.sell(index, item.q).catch(errorHandler);
 		};
 	};
 

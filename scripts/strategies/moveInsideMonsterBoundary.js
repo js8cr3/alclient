@@ -1,4 +1,6 @@
 import * as impure from '../library/impure.js'
+import { runPromiseUntilSuccess } from "../library/utils.js"
+import { errorHandler } from "../library/errorHandler.js"
 
 export function moveInsideMonsterBoundary([x1, y1, x2, y2], monsterSpot) {
 
@@ -10,23 +12,23 @@ export function moveInsideMonsterBoundary([x1, y1, x2, y2], monsterSpot) {
 		down = y1; up = y2;
 	}
 
-	const atMonsterSpot = new Promise( async (resolve, reject) => {
+	return new Promise( async (resolve, reject) => {
 
 		if(	this.x > left && this.x < right && 
 			this.y > up && this.y < down
 		) {
-			impure.functionMessage(this.id + ' is inside monster boundry', 'moveInsideMonsterBoundry');
+			impure.timePrefix(this.id + ' is inside monster boundry', 'moveInsideMonsterBoundry');
 			return resolve('Inside monster boundry');
 		}
 
-		impure.functionMessage(this.id + ` is outside monster boundry, smart moving to ${JSON.stringify(monsterSpot)}`, 'moveInsideMonsterBoundry');
+		impure.timePrefix(this.id + ` is outside monster boundry, smart moving to ${JSON.stringify(monsterSpot)}`, 'moveInsideMonsterBoundry');
 
-	    await this.smartMove(monsterSpot, {costs: {transport: 9999999, 'town': 9999999}});
-		impure.functionMessage( this.id + ' arrived at monster spot', 'moveInsideMonsterBoundry' );
+		const moveToSpot = () => this.smartMove(monsterSpot, {costs: {transport: 9999999, 'town': 9999999}});
+		await runPromiseUntilSuccess(moveToSpot, errorHandler);
+
+		impure.timePrefix( this.id + ' arrived at monster spot', 'moveInsideMonsterBoundry' );
 		resolve('Arrived at monster spot');
 
 	} );
-
-	return atMonsterSpot;
 
 }
