@@ -12,7 +12,6 @@ export async function combatMain(characterNamesByClass) {
 
 	const nodes = initializeNodes(monsterBoundary, gridUnit, symbolA);
 
-	const partyList = ['Desk', 'Stool', 'Shelf', 'Bench'];
 	const safeSpot = {x: -442, y: -2154};
 
 	if (character.rip) {
@@ -23,7 +22,7 @@ export async function combatMain(characterNamesByClass) {
 
 	if(character.ctype === 'mage') {
 
-		character.handleMagiportRequest(partyList);
+		character.handleMagiportRequest(Object.values(characterNamesByClass));
 		while(character.ready) {
 			impure.timePrefix(character.name + ' combatState: ' + LocalStorage.combatState)
 			await mageLoop();

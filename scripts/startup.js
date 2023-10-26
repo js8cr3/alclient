@@ -4,9 +4,13 @@ import { assignMethods } from "./library/assignMethods.js"
 import { assignHalloweenMethods } from "./halloween/assignHalloweenMethods.js"
 import { LocalStorage } from "./LocalStorage.js"
 
-const merchantName = 'Bench';
-const mageName = 'Desk';
-const partyList = ['Desk', 'Roof', 'Shelf'];
+const partyList = ["Desk", "Roof", "Shelf"];
+const characterNamesByClass = {
+	"mage": "Desk",
+	"rogue": "Roof",
+	"warrior": "Shelf",
+	"merchant": "Bench"
+}
 const consumablesNeeded = {'hpot1': 9999, 'mpot0': 9999}; 
 const sendLootBlacklist = ['tracker','hpot1', 'mpot0'];
 const selectEquipementList = ctype => {
@@ -30,11 +34,11 @@ export default async function startup() {
 	const callStartupMethods = () => {
 		this.gameMessages();
 		this.formParty(...partyList);
-		this.combatantOnCM(merchantName, consumablesNeeded, sendLootBlacklist);
-		this.onReceivingEquipment(merchantName, selectEquipementList(this.ctype)); 
+		this.combatantOnCM(characterNamesByClass.merchant, consumablesNeeded, sendLootBlacklist);
+		this.onReceivingEquipment(characterNamesByClass.merchant, selectEquipementList(this.ctype)); 
 		this.updateDatabase();
 		this.disperseOnCombinedDamage();
-		this.handleMagiportInvite(mageName, undefined /*() => LocalStorage.combatState = 'ready'*/ );
+		this.handleMagiportInvite(characterNamesByClass.mage, undefined /*() => LocalStorage.combatState = 'ready'*/ );
 	};
 
 	callStartupMethods();
@@ -44,6 +48,6 @@ export default async function startup() {
 		if( i > 99 ) throw new Error("Character failed to load");
 	}
 	
-	await this.combatMain();
+	await this.combatMain(characterNamesByClass);
 
 }

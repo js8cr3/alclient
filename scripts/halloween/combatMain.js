@@ -4,16 +4,9 @@ import { errorHandler } from "../library/errorHandler.js"
 import { Halloween } from "./Halloween.js"
 import { LocalStorage } from "../LocalStorage.js"
 
-const partyList = ['Roof', 'Desk', 'Bench', 'Shelf', 'Stool'];
-const characterNamesByClass = {
-	"rogue": "Roof",
-	"mage": "Desk"
-}
-const mageName = 'Desk';
-const halloweenDataURL = 'https://aldata.earthiverse.ca/halloween';
 const mapList = ['main', 'halloween', 'level1', 'level2', 'spookytown'];
 
-export async function combatMain() {
+export async function combatMain(characterNamesByClass) {
 
 	const character = this;
 	LocalStorage.attackMode = true;
@@ -38,9 +31,9 @@ export async function combatMain() {
 		
 		while(character.ready) { 
 			if(character.rip) character.respawn().catch(errorHandler);
-			if(!character.getPlayerByName(mageName)) {
-				impure.timePrefix(`${character.name} sent magiport request to ${mageName}`, nonMageMain.name, '#55f');
-				character.sendCM([mageName], {"magiport": true}).catch(errorHandler);
+			if(!character.getPlayerByName(characterNamesByClass.mage)) {
+				impure.timePrefix(`${character.name} sent magiport request to ${characterNamesByClass.mage}`, nonMageMain.name, '#55f');
+				character.sendCM([characterNamesByClass.mage], {"magiport": true}).catch(errorHandler);
 			}
 			await new Promise(r=>setTimeout(r,10000));
 		};
@@ -52,13 +45,13 @@ export async function combatMain() {
 
 	async function mageMain() {
 		
-		character.handleMagiportRequest(partyList);
+		character.handleMagiportRequest(Object.values(characterNamesByClass));
 		const isInPathfindableMap = () => {
 			let isIn = false;
 			for(const map of mapList) {
 				if(character.map === map) isIn = true;	
 			}
-			impure.timePrefix(character.name + ' in pathfindable map: '+isIn, mageName.name, '#afa');
+			impure.timePrefix(character.name + ' in pathfindable map: '+isIn, mageMain.name, '#afa');
 			return isIn;
 		}
 		

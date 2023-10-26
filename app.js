@@ -11,7 +11,13 @@ run();
 
 async function run() {
 
-	await Halloween.updateData();
+	while(true) {
+		await Halloween.updateData().catch(console.error);
+		if(Halloween.data) break;
+		await new Promise(r=>setTimeout(r,10000));
+	}
+
+	Halloween.updateDataLoop();
 
     await Promise.all([AL.Game.loginJSONFile("./credentials.json"), AL.Game.getGData()])
     await AL.Pathfinder.prepare(AL.Game.G)
@@ -53,13 +59,6 @@ async function run() {
 	
 	};
 
-	const setTargetDataLoop = async () => {
-		while(true) {
-			await new Promise(r => setTimeout(r,10000));
-			await Halloween.updateData();
-		}
-	}
-
 	const startCharacterLoop = async characterName => {
 		while(true) {
 			await startCharacter(characterName).catch( e => {
@@ -69,7 +68,6 @@ async function run() {
 		};
 	}
 
-	setTargetDataLoop();
 	party.forEach(startCharacterLoop);
 
 }

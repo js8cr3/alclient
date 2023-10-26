@@ -6,7 +6,13 @@ import { Halloween } from "./scripts/halloween/Halloween.js"
 run();
 async function run() {
 	
-	await Halloween.updateData();
+    while(true) {
+        await Halloween.updateData().catch(console.error);
+        if(Halloween.data) break;
+        await new Promise(r=>setTimeout(r,10000));
+    }   
+
+    Halloween.updateDataLoop();
 
     await Promise.all([AL.Game.loginJSONFile("./credentials.json"), AL.Game.getGData()])
 	await AL.Pathfinder.prepare(AL.Game.G);

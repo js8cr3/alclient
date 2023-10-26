@@ -2,7 +2,65 @@ import * as impure from "../library/impure.js"
 import { errorHandler } from "../library/errorHandler.js"
 import { LocalStorage } from "../LocalStorage.js"
 
+/*
+    autoUpgrade Looping: a loop that continues calling autoUpgrade() until autoUpgrade returns a value that signals to end the loop
+
+		currentUpgrade: type of equipment to upgrade
+		upgradeBuy: whether to buy equipment after running out
+
+
+		if gold less than desired
+			END UPGRADE LOOP
+		if !LocalStorage.currentUpgrade
+			determine new upgrade target
+				if not enough space in inventory
+					END UPGRADE LOOP
+				per potential upgrade target
+					if potential target exists in bank
+						set currentUpgrade to potential target
+						continue to next autoUpgrade iteration (which will start upgrading target)
+					if potential target doesnt exist in bank
+						if set to buy
+							set currentUpgrade to potential target
+							continue to next autoUpgrade iteration 
+						if not set to buy
+							continue looking for potential target
+				if upgrade target not found
+					END UPGRADE LOOP
+		if currentUpgrade exists in inventory
+			upgrade item
+			continue to next autoUpgrade iteration 
+		if currentUpgrade not exist in inventory
+			if upgradeBuy is true
+				buy, upgrade
+				continue to next autoUpgrade iteration 
+			if upgradeBuy is not true
+				set currentUpgrade to undefined (so next iteration will determine new target)
+				continue to next autoUpgrade iteration 
+		if upgradeBuy is true, and theres equipment in inventory that reached target level
+			upgradeBuy set to falsy
+			continue to next autoUpgrade iteration 
+
+*/
+
 export default async function autoUpgrade(upgradeList, minGold, restSpot) {
+
+	// possible return values: 
+		// 'Not enough gold'						- END LOOP
+		// await this.determineNewUpgradeTarget()
+			// 'Finished all upgrades' 				- END LOOP
+			// 'Not enough space in inventory'		- END LOOP
+			// 'Found upgrade target'
+		// await new Promise(upgradeProcess)
+			// resolve('No more in inventory to upgrade')
+			// resolve('Upgrade finished')
+			// reject('Upgrade timeout')
+			// unknown error
+		// await new Promise(compountProcess)
+			// resolve('No more in inventory to compound')
+			// resolve('Comound finished')
+			// reject('Compound timeout')
+			// unknown error
 
 	if(!this.ready) throw new Error('Character not ready');
 	if(this.rip) throw new Error('Character dead');
@@ -11,23 +69,17 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
 	const upgradeProcess = async (resolve, reject) => {
 
-		// possible fulfillment values:
-			// resolve('No more in inventory to upgrade')
-			// resolve('Upgrade finished')
-			// reject(upgradeError)
-			// reject('Upgrade timeout')
-
 		const listItem = upgradeList[LocalStorage.currentUpgrade];
 		let currentUpgradeLocation = findItemUnderLevel(LocalStorage.currentUpgrade, listItem.level);
 
 		if(!currentUpgradeLocation) {
-			// if buy value isn't a truthy, and there is no more of the type in inventory, set currentUpgrade to undefined and resolve
+			// if LocalStorage.upgradeBuy isn't a truthy, and there is no more of the type in inventory, set currentUpgrade to undefined and resolve
 			if( !LocalStorage.upgradeBuy ) {
 				LocalStorage.currentUpgrade = undefined;
 				impure.timePrefix('No more in inventory to upgrade', autoUpgrade.name);
 				return resolve('No more in inventory to upgrade');
 			}
-			// if buy value is true, and item of type not found, buy it
+			// if LocalStorage.upgradeBuy is true, and item of type not found, buy it
 			await character.buy(LocalStorage.currentUpgrade)
 			.then( data => currentUpgradeLocation = data )
 			.catch(reject);
@@ -117,31 +169,14 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 
 	}
 
-	// return if certain conditions are met
-	// possible results: 
-		// 'Not enough gold'
-		// await this.determineNewUpgradeTarget()
-			// 'Finished all upgrades'
-			// 'Not enough space in inventory'
-			// 'Found upgrade target'
-		// await new Promise(upgradeProcess)
-			// resolve('No more in inventory to upgrade')
-			// resolve('Upgrade finished')
-			// reject('Upgrade timeout')
-			// unknown error
-		// await new Promise(compountProcess)
-			// resolve('No more in inventory to compound')
-			// resolve('Comound finished')
-			// reject('Compound timeout')
-			// unknown error
-
+	// if gold is less than desired, return
 	if(character.gold < minGold) {
 		impure.timePrefix(`Current gold (${this.gold}) below threshold (${minGold})`, autoUpgrade.name);
 		return 'Not enough gold';
 	};
 
-	// if there is an item that has reached sufficient level in inventory while this.upgradeBuy is true, set this.upgradeBuy to false
-	// this is to prevent limitlessly upgrading vendor equipment
+	// if there is an item that has reached sufficient level in inventory while LocalStorage.upgradeBuy is true, set LocalStorage.upgradeBuy to false
+	// this is to prevent overbuying vendor equipment
 
 	if(
 		LocalStorage.currentUpgrade && 
@@ -152,12 +187,12 @@ export default async function autoUpgrade(upgradeList, minGold, restSpot) {
 		LocalStorage.upgradeBuy = false;
 	}
 
-	// if this.currentUpgrade is undefined, check bank to determine new this.currentUpgrade
+	// if LocalStorage.currentUpgrade is undefined, check bank to determine new LocalStorage.currentUpgrade
 
 	if(!LocalStorage.currentUpgrade) {
 		await character.closeMerchantStand().catch(errorHandler)
 		impure.timePrefix(`No target to upgrade, checking bank to decide target`, autoUpgrade.name);
-		await character.smartMove('bank')
+		await character.smartMove('bank');
 		const bankResult = await character.determineNewUpgradeTarget(upgradeList);
 		await character.smartMove(restSpot);
 		impure.timePrefix(bankResult, autoUpgrade.name);

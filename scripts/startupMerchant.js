@@ -11,8 +11,7 @@ const itemsToBuy = {
 };
 const itemsToSell = ['ringsj', 'hpbelt', 'hpamulet', 'gphelmet'];
 const restSpot = {map: 'main', x: -210, y: -80}
-const grindSpot = {map: 'main', x: 1480, y: -390}
-const exitBank = {map: 'main', x: 168, y: -134}
+const grindSpot = {map: 'main', x: 1480, y: -390} // obsolete for now due to magiport
 const upgradeList = {
 	vitring: {level: 2},
 	dexring: {level: 3},
@@ -74,17 +73,6 @@ export default async function startupMerchant() {
 		impure.timePrefix(this.name + ' respawned', startupMerchant.name);
 	}
 
-	const merchantActivity = async () => {
-		impure.timePrefix('Moving to bank to deposit items', startupMerchant.name);
-		await this.closeMerchantStand();
-		await this.smartMove('bank');
-		await new Promise(r => setTimeout(r, 3000));
-		impure.timePrefix('Depositing items to bank', startupMerchant.name);
-		await this.depositItemsToBank(itemsToDeposit);
-		await this.smartMove(exitBank);
-		await this.merchantRoutine(partyList, itemsToBuy, itemsToSell, restSpot, grindSpot);
-	}
-
 	while(this.ready) {
 
 		try {
@@ -93,7 +81,7 @@ export default async function startupMerchant() {
 
 			if (!routineCooldown) {
 				resetRoutineCooldown();
-				await merchantActivity();
+				await this.merchantRoutine(partyList, itemsToBuy, itemsToSell, itemsToDeposit, restSpot, grindSpot, mageName);
 			}
 
 			const upgradeResult = await this.autoUpgrade(upgradeList, upgradeMinGold, restSpot);
