@@ -46,13 +46,6 @@ async function run() {
 
 	};
 
-    const setTargetDataLoop = async () => {
-        while(true) {
-            await new Promise(r => setTimeout(r,1000 * 120));
-			await Halloween.updateData();
-        }
-    }
-
 	const startMerchantLoop = async () => {
 		while(true) {
 			await new Promise(startMerchant).catch( error => {
@@ -62,7 +55,6 @@ async function run() {
 		};
 	}
 
-    setTargetDataLoop();
 	startMerchantLoop();
 	
 }
